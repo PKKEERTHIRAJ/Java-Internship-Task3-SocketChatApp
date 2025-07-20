@@ -1,0 +1,80 @@
+///SERVER///
+import java.io.*;
+import java.net.*;
+import java.util.*;
+
+public class Server {
+    private static final int PORT = 1234;
+    private static final List<ClientHandler> clients = new ArrayList<>();
+
+    public static void main(String[] args) throws IOException {
+        ServerSocket serverSocket = new ServerSocket(PORT);
+        System.out.println("Server started on port " + PORT);
+
+        while (true) {
+            Socket socket = serverSocket.accept();
+            System.out.println("Client connected: " + socket);
+            ClientHandler client = new ClientHandler(socket, clients);
+            clients.add(client);
+            new Thread(client).start();
+        }
+    }
+}
+
+class ClientHandler implements Runnable {
+    private Socket socket;
+    private List<ClientHandler> clients;
+    private PrintWriter out;
+    private BufferedReader in;
+
+    public ClientHandler(Socket socket, List<ClientHandler> clients) throws IOException {
+        this.socket = socket;
+        this.clients = clients;
+        this.out = new PrintWriter(socket.getOutputStream(), true);
+        this.in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+    }
+
+    public void run() {
+        try {
+            String msg;
+            while ((msg = in.readLine()) != null) {
+                for (ClientHandler client : clients) {
+                    client.out.println("Message: " + msg);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+
+///CLIENT///
+import java.io.*;
+import java.net.*;
+
+public class Client {
+    public static void main(String[] args) throws IOException {
+        Socket socket = new Socket("localhost", 1234);
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+        BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+        new Thread(() -> {
+            String msgFromServer;
+            try {
+                while ((msgFromServer = in.readLine()) != null) {
+                    System.out.println(msgFromServer);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }).start();
+
+        String msg;
+        while ((msg = reader.readLine()) != null) {
+            out.println(msg);
+        }
+    }
+}
